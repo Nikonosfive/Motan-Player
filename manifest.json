@@ -1,7 +1,7 @@
 {
-  "short_name": "Ongaku Layer",
-  "name": "Ongaku Layer LP1 by TADR",
-  "description": "An useful Music Player",
+  "short_name": "Motan Player",
+  "name": "Motan Player by TADR",
+  "description": "Offline Music Player",
   "version": "0.10",
   "icons": [
       {
@@ -25,7 +25,7 @@
         "sizes": "512x512"
       }
     ],
-  "start_url": "https://site.tadr-tech.info/Ongaku-Layer-LP1/",
+  "start_url": "https://site.tadr-tech.info/Motan-Player/",
   "display": "standalone",
   "lang": "ja-JP",
   "theme_color": "#dddddd",
