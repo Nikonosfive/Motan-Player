@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="jp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ongalu Layer MP5 by T.A Design Room.</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="img/logo.svg" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="img/logo.ico" />
+</head>
+<body>
+    <div id="player">
+        <div id="header">
+            <div id="volumeSpeedControls">
+                <div class="sliderContainer">
+                    <label for="volumeSlider">🔈 <span id="volumeLabel">100%</span></label>
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+                </div>
+                <div class="sliderContainer">
+                    <label for="speedSlider">⏱ <span id="speedLabel">100%</span></label>
+                    <input type="range" id="speedSlider" min="0.5" max="2" step="0.01" value="1">
+                </div>
+            </div>
+            <audio id="audio" controls></audio>
+            <div id="controls">
+                <button id="prevButton" class="control-btn">⏮</button>
+                <button id="rewindButton" class="control-btn">⏪ 5s</button>
+                <button id="playPauseButton" class="control-btn">▶️</button>
+                <button id="forwardButton" class="control-btn">⏩ 5s</button>
+                <button id="nextButton" class="control-btn">⏭</button>
+                <button id="shuffleButton" class="control-btn">🔀</button>
+                <button id="repeatButton" class="control-btn">🔁</button>
+                          <div class="scroll"><div id="nowPlaying">なし</div></div>
+
+            </div>
+        </div>
+
+        <div id="main">
+            <input type="file" id="fileInput" multiple>
+            <button id="newPlaylistButton">New Playlist</button>
+            <div class="tab-class" id="tabs"></div>
+            <ul id="playlist"></ul>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script src="script.js"></script>
+ 
+</body>
+</html>
