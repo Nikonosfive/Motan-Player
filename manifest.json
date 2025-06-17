@@ -1,8 +1,8 @@
 {
-  "short_name": "Motan Player",
-  "name": "Motan Player by TADR",
+  "short_name": "Motan",
+  "name": "Motan Player",
   "description": "Offline Music Player",
-  "version": "0.10",
+  "version": "1.00",
   "icons": [
       {
         "src": "img/logo_96.png",
