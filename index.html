@@ -1,259 +1,268 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motan Player</title>
+  <meta name="application-name" content="Motan">
+  <meta name="theme-color" content=#dddddd"">
+  <meta name="description" content="Motan Playe - モータンプレーヤー　offline web music player">
+  <meta name="keywords" content="MotanPlayer, Motan, Music Player, Brower Music">
+  <link rel="stylesheet" type="text/css" href="css/style.css" />
   <link rel="icon" href="img/logo.svg" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="img/logo.ico" /><title>Motan Player by T.A Design Room.</title>
-  <style>
-    
-    body { font-family: sans-serif; padding: 20px; }
-    ul { list-style: none; padding: 0; }
-    li {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 5px; margin: 5px 0; background: #eef; cursor: move;
-    }
-    li.playing { background: #cce; font-weight: bold; }
-    .controls button { margin: 5px; }
-    .duration { font-size: 0.9em; color: #555; margin-left: 10px; }
-    .progress-container {
-      display: flex; align-items: center;
-      margin: 15px 0;
-    }
-    #progress {
-      flex: 1; height: 8px;
-      background: #ccc;
-      margin: 0 10px;
-      position: relative;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    #progressFilled {
-      background: #66f;
-      height: 100%;
-      width: 0%;
-      border-radius: 4px;
-    }
-    .time {
-      font-size: 0.9em;
-      width: 50px;
-      text-align: center;
-    } button{padding: 0.2rem; margin: 0.2rem;}
-  
-  </style>
+  <link rel="apple-touch-icon" href="img/ios_logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
 </head>
+
 <body>
-  <h3>Motan Player</h3>
-  <input type="file" id="fileInput" multiple accept="audio/*"><br><br>
+  <label class="divbutton" for='fileInput'>📁</label>
+  <input type="file" id="fileInput" class="input" multiple>
+  <div id="playerContainer">
+    <div class="controls">
+      <button class="toolbu" id="rewindBtn">⏪</button>
 
-  <div class="controls">
-    <button id="prevBtn">⏮️</button>
-    <button id="playPauseBtn">▶️</button>
-    <button id="nextBtn">⏭️</button>
-    <button id="loopBtn">🔁 ループ: オフ</button>
-    <button id="shuffleBtn">🔀 シャッフル: オフ</button>
-  </div>
+      <button class="toolbu" id="prevBtn">⏮️</button>
+      <button class="toolbu" id="playPauseBtn">▶️</button>
+      <button class="toolbu" id="nextBtn">⏭️</button>
+      <button class="toolbu" id="forwardBtn">⏩</button>
 
-  <div class="progress-container">
-    <div id="currentTime" class="time">0:00</div>
-    <div id="progress">
-      <div id="progressFilled"></div>
+      <button id="loopBtn">🔁 オフ</button>
+      <button id="shuffleBtn">🔀 オフ</button>
+      <select id="speedSelect">
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1" selected>1x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2x</option>
+      </select>
     </div>
-    <div id="totalTime" class="time">0:00</div>
+
+    <div class="progress-container">
+      <div class="sayu">
+        <div id="currentTime" class="time">0:00</div>
+        <div id="totalTime" class="time">0:00</div>
+      </div>
+
+      <div id="progress">
+        <div id="progressFilled"></div>
+      </div>
+    </div>
+
+    <h4 id="nowPlaying">🎵</h4>
+    <div class="playlist-container">
+      <ul id="playlist" class="playlist"></ul>
+    </div>
+    <audio id="audioPlayer"></audio>
   </div>
-
-  <ul id="playlist"></ul>
-  <audio id="audioPlayer"></audio>
-
-  <script>
-    let db, playlist = [], currentIndex = 0;
-    let isPlaying = false, loopMode = 0, shuffle = false;
-
-    const fileInput = document.getElementById('fileInput');
-    const playlistEl = document.getElementById('playlist');
-    const audioPlayer = document.getElementById('audioPlayer');
-    const playPauseBtn = document.getElementById('playPauseBtn');
-    const loopBtn = document.getElementById('loopBtn');
-    const shuffleBtn = document.getElementById('shuffleBtn');
-    const progress = document.getElementById('progress');
-    const progressFilled = document.getElementById('progressFilled');
-    const currentTimeEl = document.getElementById('currentTime');
-    const totalTimeEl = document.getElementById('totalTime');
-
-    indexedDB.open('musicPlayerDB', 1).onupgradeneeded = e => {
-      db = e.target.result;
-      db.createObjectStore('tracks', { keyPath: 'id', autoIncrement: true });
-    };
-    indexedDB.open('musicPlayerDB', 1).onsuccess = e => {
-      db = e.target.result;
-      loadPlaylist();
-    };
-
-    fileInput.addEventListener('change', () => {
-      const files = Array.from(fileInput.files);
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = e => {
-          const transaction = db.transaction('tracks', 'readwrite');
-          transaction.objectStore('tracks').add({
-            name: file.name, blob: e.target.result
-          }).onsuccess = () => setTimeout(loadPlaylist, 300);
-        };
-        reader.readAsArrayBuffer(file);
-      });
-    });
-
-    function loadPlaylist() {
-      const tx = db.transaction('tracks', 'readonly');
-      const store = tx.objectStore('tracks');
-      const request = store.getAll();
-      request.onsuccess = () => {
-        playlist = request.result.map(t => ({ id: t.id, name: t.name, blob: t.blob }));
-        const order = JSON.parse(localStorage.getItem('playlistOrder'));
-        if (order) playlist.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-        renderPlaylist();
-      };
-    }
-
-    function renderPlaylist() {
-      playlistEl.innerHTML = '';
-      playlist.forEach((track, index) => {
-        const li = document.createElement('li');
-        li.setAttribute('draggable', true);
-        li.dataset.index = index;
-        if (index === currentIndex) li.classList.add('playing');
-
-        const name = document.createElement('span');
-        name.textContent = track.name;
-        name.style.flex = '1';
-        name.addEventListener('click', () => {
-          currentIndex = index;
-          playCurrent();
+  <dic class="credit">Motan Player by Kasairo（A.K.A T.A Design Room） Ver.1.00</div>
+    <script>
+      let db, playlist = [],
+        currentIndex = 0,
+        currentTrackId = null;
+      let isPlaying = false,
+        loopMode = 0,
+        shuffle = false;
+      const fileInput = document.getElementById('fileInput');
+      const playlistEl = document.getElementById('playlist');
+      const audioPlayer = document.getElementById('audioPlayer');
+      const playPauseBtn = document.getElementById('playPauseBtn');
+      const loopBtn = document.getElementById('loopBtn');
+      const shuffleBtn = document.getElementById('shuffleBtn');
+      const progress = document.getElementById('progress');
+      const progressFilled = document.getElementById('progressFilled');
+      const currentTimeEl = document.getElementById('currentTime');
+      const totalTimeEl = document.getElementById('totalTime');
+      const nowPlayingEl = document.getElementById('nowPlaying');
+      indexedDB.open('musicPlayerDB', 1).onupgradeneeded = e => {
+        db = e.target.result;
+        db.createObjectStore('tracks', {
+          keyPath: 'id',
+          autoIncrement: true
         });
+      };
+      indexedDB.open('musicPlayerDB', 1).onsuccess = e => {
+        db = e.target.result;
+        loadPlaylist();
+      };
+      fileInput.addEventListener('change', () => {
+        const files = Array.from(fileInput.files);
+        files.forEach(file => {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const transaction = db.transaction('tracks', 'readwrite');
+            transaction.objectStore('tracks').add({
+              name: file.name,
+              blob: e.target.result
+            }).onsuccess = () => setTimeout(loadPlaylist, 300);
+          };
+          reader.readAsArrayBuffer(file);
+        });
+      });
 
-        const duration = document.createElement('span');
-        duration.className = 'duration';
+      function loadPlaylist() {
+        const tx = db.transaction('tracks', 'readonly');
+        const store = tx.objectStore('tracks');
+        const request = store.getAll();
+        request.onsuccess = () => {
+          playlist = request.result.map(t => ({
+            id: t.id,
+            name: t.name,
+            blob: t.blob
+          }));
+          const order = JSON.parse(localStorage.getItem('playlistOrder'));
+          if (order) playlist.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+          if (currentTrackId !== null) {
+            const idx = playlist.findIndex(t => t.id === currentTrackId);
+            if (idx !== -1) currentIndex = idx;
+            else currentIndex = 0;
+          }
+          renderPlaylist();
+        };
+      }
+
+      function renderPlaylist() {
+        playlistEl.innerHTML = '';
+        playlist.forEach((track, index) => {
+          const li = document.createElement('li');
+          li.setAttribute('draggable', true);
+          li.dataset.index = index;
+          if (playlist[index].id === currentTrackId) li.classList.add('playing');
+          const name = document.createElement('span');
+          name.textContent = track.name;
+          name.style.flex = '1';
+          name.addEventListener('click', () => {
+            currentIndex = index;
+            playCurrent();
+          });
+          const duration = document.createElement('span');
+          duration.className = 'duration';
+          const blob = new Blob([track.blob]);
+          const url = URL.createObjectURL(blob);
+          const tmpAudio = new Audio(url);
+          tmpAudio.addEventListener('loadedmetadata', () => {
+            const dur = Math.floor(tmpAudio.duration);
+            const min = Math.floor(dur / 60),
+              sec = String(dur % 60).padStart(2, '0');
+            duration.textContent = `${min}:${sec}`;
+          });
+          const delBtn = document.createElement('button');
+          delBtn.textContent = '🗑️';
+          delBtn.id = 'delete-btn';
+          delBtn.onclick = () => {
+            const tx = db.transaction('tracks', 'readwrite');
+            tx.objectStore('tracks').delete(track.id).onsuccess = () => {
+              playlist.splice(index, 1);
+              localStorage.setItem('playlistOrder', JSON.stringify(playlist.map(t => t.id)));
+              if (currentIndex >= playlist.length) currentIndex = 0;
+              renderPlaylist();
+            };
+          };
+          li.append(name, duration, delBtn);
+          li.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', index));
+          li.addEventListener('dragover', e => e.preventDefault());
+          li.addEventListener('drop', e => {
+            e.preventDefault();
+            const from = parseInt(e.dataTransfer.getData('text/plain'));
+            const to = index;
+            const moved = playlist.splice(from, 1)[0];
+            playlist.splice(to, 0, moved);
+            localStorage.setItem('playlistOrder', JSON.stringify(playlist.map(t => t.id)));
+            renderPlaylist();
+          });
+          playlistEl.appendChild(li);
+        });
+      }
+
+      function playCurrent() {
+        if (!playlist[currentIndex]) return;
+        const track = playlist[currentIndex];
         const blob = new Blob([track.blob]);
         const url = URL.createObjectURL(blob);
-        const tmpAudio = new Audio(url);
-        tmpAudio.addEventListener('loadedmetadata', () => {
-          const dur = Math.floor(tmpAudio.duration);
-          const min = Math.floor(dur / 60), sec = String(dur % 60).padStart(2, '0');
-          duration.textContent = `${min}:${sec}`;
-        });
+        audioPlayer.src = url;
+        audioPlayer.play();
+        isPlaying = true;
+        currentTrackId = track.id;
+        nowPlayingEl.textContent = `🎵  ${track.name}`;
+        updatePlayBtn();
+        renderPlaylist();
+      }
 
-        const delBtn = document.createElement('button');
-        delBtn.textContent = '🗑️';
-        delBtn.onclick = () => {
-          const tx = db.transaction('tracks', 'readwrite');
-          tx.objectStore('tracks').delete(track.id).onsuccess = () => {
-            playlist.splice(index, 1);
-            localStorage.setItem('playlistOrder', JSON.stringify(playlist.map(t => t.id)));
-            if (currentIndex >= playlist.length) currentIndex = 0;
-            renderPlaylist();
-          };
-        };
-
-        li.append(name, duration, delBtn);
-        li.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', index));
-        li.addEventListener('dragover', e => e.preventDefault());
-        li.addEventListener('drop', e => {
-          e.preventDefault();
-          const from = parseInt(e.dataTransfer.getData('text/plain'));
-          const to = index;
-          const moved = playlist.splice(from, 1)[0];
-          playlist.splice(to, 0, moved);
-          localStorage.setItem('playlistOrder', JSON.stringify(playlist.map(t => t.id)));
-          renderPlaylist();
-        });
-
-        playlistEl.appendChild(li);
+      function updatePlayBtn() {
+        playPauseBtn.textContent = isPlaying ? '⏸️' : '▶️';
+      }
+      playPauseBtn.onclick = () => {
+        if (isPlaying) {
+          audioPlayer.pause();
+          isPlaying = false;
+        } else {
+          playCurrent();
+        }
+        updatePlayBtn();
+      };
+      document.getElementById('prevBtn').onclick = () => {
+        currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+        playCurrent();
+      };
+      document.getElementById('nextBtn').onclick = () => nextTrack();
+      loopBtn.onclick = () => {
+        loopMode = (loopMode + 1) % 3;
+        loopBtn.textContent = `🔁 ${['オフ', '一曲', '全体'][loopMode]}`;
+      };
+      shuffleBtn.onclick = () => {
+        shuffle = !shuffle;
+        shuffleBtn.textContent = `🔀 ${shuffle ? 'オン' : 'オフ'}`;
+      };
+      audioPlayer.addEventListener('ended', () => {
+        if (loopMode === 1) playCurrent();
+        else nextTrack();
       });
-    }
 
-    function playCurrent() {
-      if (!playlist[currentIndex]) return;
-      const blob = new Blob([playlist[currentIndex].blob]);
-      const url = URL.createObjectURL(blob);
-      audioPlayer.src = url;
-      audioPlayer.play();
-      isPlaying = true;
-      updatePlayBtn();
-      renderPlaylist();
-    }
-
-    function updatePlayBtn() {
-      playPauseBtn.textContent = isPlaying ? '⏸️' : '▶️';
-    }
-
-    playPauseBtn.onclick = () => {
-      if (isPlaying) {
-        audioPlayer.pause();
-        isPlaying = false;
-      } else {
+      function nextTrack() {
+        if (shuffle) currentIndex = Math.floor(Math.random() * playlist.length);
+        else {
+          currentIndex++;
+          if (currentIndex >= playlist.length) {
+            if (loopMode === 2) currentIndex = 0;
+            else return;
+          }
+        }
         playCurrent();
       }
-      updatePlayBtn();
-    };
+      audioPlayer.addEventListener('timeupdate', () => {
+        const percent = audioPlayer.currentTime / audioPlayer.duration * 100;
+        progressFilled.style.width = `${percent}%`;
+        currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+        totalTimeEl.textContent = formatTime(audioPlayer.duration);
+      });
 
-    document.getElementById('prevBtn').onclick = () => {
-      currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-      playCurrent();
-    };
-    document.getElementById('nextBtn').onclick = () => nextTrack();
-
-    loopBtn.onclick = () => {
-      loopMode = (loopMode + 1) % 3;
-      loopBtn.textContent = `🔁 ループ: ${['オフ','一曲','全体'][loopMode]}`;
-    };
-    shuffleBtn.onclick = () => {
-      shuffle = !shuffle;
-      shuffleBtn.textContent = `🔀 シャッフル: ${shuffle ? 'オン' : 'オフ'}`;
-    };
-
-    audioPlayer.addEventListener('ended', () => {
-      if (loopMode === 1) playCurrent();
-      else nextTrack();
-    });
-
-    function nextTrack() {
-      if (shuffle) currentIndex = Math.floor(Math.random() * playlist.length);
-      else {
-        currentIndex++;
-        if (currentIndex >= playlist.length) {
-          if (loopMode === 2) currentIndex = 0;
-          else return;
-        }
+      function formatTime(t) {
+        if (!t || isNaN(t)) return '0:00';
+        const min = Math.floor(t / 60);
+        const sec = String(Math.floor(t % 60)).padStart(2, '0');
+        return `${min}:${sec}`;
       }
-      playCurrent();
-    }
-
-    // プログレスバー処理
-    audioPlayer.addEventListener('timeupdate', () => {
-      const percent = audioPlayer.currentTime / audioPlayer.duration * 100;
-      progressFilled.style.width = `${percent}%`;
-      currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
-      totalTimeEl.textContent = formatTime(audioPlayer.duration);
-    });
-
-    function formatTime(t) {
-      if (!t || isNaN(t)) return '0:00';
-      const min = Math.floor(t / 60);
-      const sec = String(Math.floor(t % 60)).padStart(2, '0');
-      return `${min}:${sec}`;
-    }
-
-    const seek = e => {
-      const rect = progress.getBoundingClientRect();
-      const x = e.clientX || (e.touches?.[0]?.clientX);
-      const ratio = (x - rect.left) / rect.width;
-      audioPlayer.currentTime = ratio * audioPlayer.duration;
-    };
-    progress.addEventListener('click', seek);
-    progress.addEventListener('touchstart', seek);
-  </script>
+      const seek = e => {
+        const rect = progress.getBoundingClientRect();
+        const x = e.clientX || (e.touches?.[0]?.clientX);
+        const ratio = (x - rect.left) / rect.width;
+        audioPlayer.currentTime = ratio * audioPlayer.duration;
+      };
+      progress.addEventListener('click', seek);
+      progress.addEventListener('touchstart', seek);
+      document.getElementById('rewindBtn').onclick = () => {
+        audioPlayer.currentTime = Math.max(audioPlayer.currentTime - 5, 0);
+      };
+      document.getElementById('forwardBtn').onclick = () => {
+        audioPlayer.currentTime = Math.min(audioPlayer.currentTime + 5, audioPlayer.duration);
+      };
+      document.getElementById('speedSelect').onchange = e => {
+        audioPlayer.playbackRate = parseFloat(e.target.value);
+      };
+    </script>
 </body>
 </html>
-
