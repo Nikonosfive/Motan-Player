@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Motan Player</title>
+  <script src="https://unpkg.com/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
   <meta name="application-name" content="Motan">
   <meta name="theme-color" content=#dddddd"">
   <meta name="description" content="Motan Playe - モータンプレーヤー　offline web music player">
@@ -16,17 +17,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js")
-        .then((registration) => {
-          console.log("Service Worker registered with scope:", registration.scope);
-        })
-        .catch((error) => {
-          console.error("Service Worker registration failed:", error);
-        });
-    }
-  </script>
 </head>
 
 <body>
@@ -105,8 +95,8 @@
         files.forEach(file => {
           const reader = new FileReader();
           reader.onload = e => {
-            const transaction = db.transaction('tracks', 'readwrite');
-            transaction.objectStore('tracks').add({
+            const tx = db.transaction('tracks', 'readwrite');
+            tx.objectStore('tracks').add({
               name: file.name,
               blob: e.target.result
             }).onsuccess = () => setTimeout(loadPlaylist, 300);
@@ -123,7 +113,9 @@
           playlist = request.result.map(t => ({
             id: t.id,
             name: t.name,
-            blob: t.blob
+            blob: t.blob,
+            title: null,
+            artist: null
           }));
           const order = JSON.parse(localStorage.getItem('playlistOrder'));
           if (order) playlist.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
@@ -133,7 +125,24 @@
             else currentIndex = 0;
           }
           renderPlaylist();
+          fetchMetadataForPlaylist();
         };
+      }
+
+      function fetchMetadataForPlaylist() {
+        playlist.forEach((track, index) => {
+          const blob = new Blob([track.blob]);
+          jsmediatags.read(blob, {
+            onSuccess: function(tag) {
+              if (tag.tags.title) playlist[index].title = tag.tags.title;
+              if (tag.tags.artist) playlist[index].artist = tag.tags.artist;
+              renderPlaylist(); // メタデータ取得後に再描画
+            },
+            onError: function(error) {
+              console.warn('メタデータ取得失敗:', error);
+            }
+          });
+        });
       }
 
       function renderPlaylist() {
@@ -144,7 +153,7 @@
           li.dataset.index = index;
           if (playlist[index].id === currentTrackId) li.classList.add('playing');
           const name = document.createElement('span');
-          name.textContent = track.name;
+          name.textContent = (track.title || track.name) + (track.artist ? ` - ${track.artist}` : '');
           name.style.flex = '1';
           name.addEventListener('click', () => {
             currentIndex = index;
@@ -174,6 +183,7 @@
             };
           };
           li.append(name, duration, delBtn);
+          // ... drag/drop event listeners
           li.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', index));
           li.addEventListener('dragover', e => e.preventDefault());
           li.addEventListener('drop', e => {
@@ -198,7 +208,7 @@
         audioPlayer.play();
         isPlaying = true;
         currentTrackId = track.id;
-        nowPlayingEl.textContent = `🎵  ${track.name}`;
+        nowPlayingEl.textContent = `🎵  ${(track.title || track.name)}${track.artist ? ' - ' + track.artist : ''}`;
         updatePlayBtn();
         renderPlaylist();
       }
@@ -211,7 +221,15 @@
           audioPlayer.pause();
           isPlaying = false;
         } else {
-          playCurrent();
+          if (audioPlayer.src) {
+            // 一時停止状態からの再開
+            audioPlayer.play();
+            isPlaying = true;
+            updatePlayBtn();
+          } else {
+            // 初回 or 曲が切り替わった直後
+            playCurrent();
+          }
         }
         updatePlayBtn();
       };
@@ -276,4 +294,5 @@
       };
     </script>
 </body>
+
 </html>
